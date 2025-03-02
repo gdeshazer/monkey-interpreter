@@ -5,10 +5,18 @@ import (
 )
 
 type Lexer struct {
-	input        string
-	position     int
+
+	// input represents the source code that the Lexer will parse into tokens.
+	input string
+
+	// position tracks the current reading position in the input string.
+	position int
+
+	// readPosition tracks the next read position in the input string
 	readPosition int
-	ch           byte
+
+	// ch is the current character to process
+	ch byte
 }
 
 func New(input string) *Lexer {
@@ -38,7 +46,16 @@ func (lexer *Lexer) NextToken() token.Token {
 
 	switch lexer.ch {
 	case '=':
-		tok = token.NewToken(token.ASSIGN, lexer.ch)
+		if lexer.peakChar() == '=' {
+			var ch = lexer.ch
+
+			// read next char in input
+			lexer.readChar()
+			var literal = string(ch) + string(lexer.ch)
+			tok = token.Token{Type: token.EQ, Literal: literal}
+		} else {
+			tok = token.NewToken(token.ASSIGN, lexer.ch)
+		}
 	case ';':
 		tok = token.NewToken(token.SEMICOLON, lexer.ch)
 	case '(':
@@ -49,6 +66,27 @@ func (lexer *Lexer) NextToken() token.Token {
 		tok = token.NewToken(token.COMMA, lexer.ch)
 	case '+':
 		tok = token.NewToken(token.PLUS, lexer.ch)
+	case '-':
+		tok = token.NewToken(token.MINUS, lexer.ch)
+	case '*':
+		tok = token.NewToken(token.ASTERISK, lexer.ch)
+	case '/':
+		tok = token.NewToken(token.SLASH, lexer.ch)
+	case '!':
+		if lexer.peakChar() == '=' {
+			var ch = lexer.ch
+
+			// read next char in input
+			lexer.readChar()
+			var literal = string(ch) + string(lexer.ch)
+			tok = token.Token{Type: token.NOT_EQ, Literal: literal}
+		} else {
+			tok = token.NewToken(token.BANG, lexer.ch)
+		}
+	case '>':
+		tok = token.NewToken(token.GREATERTHAN, lexer.ch)
+	case '<':
+		tok = token.NewToken(token.LESSTHAN, lexer.ch)
 	case '{':
 		tok = token.NewToken(token.LBRACE, lexer.ch)
 	case '}':
@@ -98,6 +136,14 @@ func (lexer *Lexer) readNumber() string {
 	}
 
 	return lexer.input[start:lexer.position]
+}
+
+func (lexer *Lexer) peakChar() byte {
+	if lexer.readPosition >= len(lexer.input) {
+		return 0
+	} else {
+		return lexer.input[lexer.readPosition]
+	}
 }
 
 func isLetter(ch byte) bool {
