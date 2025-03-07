@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"fmt"
 	"monkeyInterpreter/pkg/ast"
 	"monkeyInterpreter/pkg/lexer"
 	"monkeyInterpreter/pkg/token"
@@ -14,23 +15,21 @@ type Parser struct {
 
 	// peekToken is the next token returned from lex.  This allows us to look ahead when forming the AST
 	peekToken token.Token
+
+	errors []string
 }
 
 func New(lex *lexer.Lexer) *Parser {
-	var p = &Parser{lex: lex}
+	var p = &Parser{
+		lex:    lex,
+		errors: []string{},
+	}
 
 	// read two tokens to set current and peek
 	p.nextToken()
 	p.nextToken()
 
 	return p
-}
-
-// nextToken advances the parser's tokens by setting the currentToken to the peekToken, and then setting peekToken to
-// the next token retrieved by lex
-func (p *Parser) nextToken() {
-	p.currentToken = p.peekToken
-	p.peekToken = p.lex.NextToken()
 }
 
 func (p *Parser) ParseProgram() *ast.Program {
@@ -51,10 +50,23 @@ func (p *Parser) ParseProgram() *ast.Program {
 	return program
 }
 
+func (p *Parser) Errors() []string {
+	return p.errors
+}
+
+// nextToken advances the parser's tokens by setting the currentToken to the peekToken, and then setting peekToken to
+// the next token retrieved by lex
+func (p *Parser) nextToken() {
+	p.currentToken = p.peekToken
+	p.peekToken = p.lex.NextToken()
+}
+
 func (p *Parser) parseStatement() ast.Statement {
 	switch p.currentToken.Type {
 	case token.LET:
 		return p.parseLetStatement()
+	case token.RETURN:
+		return p.parseReturnStatement()
 	default:
 		return nil
 	}
@@ -81,6 +93,20 @@ func (p *Parser) parseLetStatement() *ast.LetStatement {
 	return state
 }
 
+func (p *Parser) parseReturnStatement() *ast.ReturnStatement {
+	stmt := &ast.ReturnStatement{Token: p.currentToken}
+
+	p.nextToken()
+	//stmt.ReturnValue = &ast.Identifier{Token: p.currentToken, Value: p.currentToken.Literal}
+
+	//todo: skipping expressions for now
+	for !p.currentTokenIs(token.SEMICOLON) {
+		p.nextToken()
+	}
+
+	return stmt
+}
+
 func (p *Parser) currentTokenIs(t token.TokenType) bool {
 	return p.currentToken.Type == t
 }
@@ -95,6 +121,12 @@ func (p *Parser) expectPeek(t token.TokenType) bool {
 		p.nextToken()
 		return true
 	} else {
+		p.peekError(t)
 		return false
 	}
+}
+
+func (p *Parser) peekError(t token.TokenType) {
+	var msg = fmt.Sprintf("expected next token to be %s, got %s instead", t, p.peekToken.Type)
+	p.errors = append(p.errors, msg)
 }
